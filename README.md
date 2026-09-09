@@ -56,7 +56,7 @@ The **production MySQL 8 schema is already authored**: [`src/migrations/001_glob
 ```bash
 npm install
 npm run seed             # resets ./data and seeds demo communities through the real pipeline
-npm test                 # 75 tests — store, pipeline, idempotency, coverage, aggregation, schema, Discord mappers
+npm test                 # 80+ tests — store, pipeline, idempotency, coverage, aggregation, schema, Discord mappers, generators
 ```
 
 Seed output demonstrates the coverage language, permission gating (a non-participating guild's events are skipped), and moderator vs public views of the same profile.
@@ -87,6 +87,8 @@ npm run bot               # connects to the gateway
 | `/profile-settings sharing:<level>` | Manage Server | Sets `NONE / MINIMAL / STANDARD / FULL` → `GUILD_UPDATE` event; permissions take effect immediately and aggregates recalculate in the background. |
 | `/data-optout <mode>` | everyone | Per-user opt-out of *this server's* data feeding global profiles. |
 | `/verify` | everyone | Self-reported verification (once/day, `USER_SELF_REPORT` provenance). |
+| `/register [user]` | everyone (target = moderators) | Registers a member into AZRA: identity upsert + server membership through the pipeline. Idempotent — re-running reports "already registered". Blocked with an explanation in `NONE`-sharing guilds. |
+| `/generate-data [user] [days] [intensity]` | Manage Server | Generates random demo data (activity over the past N days, verification, badge, warning) through the pipeline and recalculates aggregates immediately — `/profile` reflects it instantly. Dev/demo tool. |
 
 ### Gateway → pipeline event mapping
 

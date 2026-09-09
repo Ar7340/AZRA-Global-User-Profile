@@ -156,7 +156,7 @@ describe('slash command registry', () => {
     }
     assert.deepEqual(
       [...new Set(names)].sort(),
-      ['data-optout', 'profile', 'profile-settings', 'serverprofile', 'verify'],
+      ['data-optout', 'generate-data', 'profile', 'profile-settings', 'register', 'serverprofile', 'verify'],
     );
   });
 });
