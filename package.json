@@ -1,0 +1,27 @@
+{
+  "name": "azra-global-user-profile",
+  "version": "0.1.0",
+  "description": "AZRA Global User Profile System — a production-ready global identity and community-history platform for Discord users.",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "seed": "node scripts/seed.js",
+    "bot": "node bot/index.js",
+    "deploy:commands": "node bot/deploy-commands.js",
+    "test": "node --test \"test/**/*.test.js\""
+  },
+  "keywords": [
+    "discord",
+    "user-profile",
+    "azra",
+    "global-identity"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.10.0"
+  },
+  "dependencies": {
+    "discord.js": "^14.27.0",
+    "dotenv": "^17.4.2"
+  }
+}
