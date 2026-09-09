@@ -105,6 +105,28 @@ npm run bot               # connects to the gateway
 
 All event ids are **deterministic** (`djs:msg:<id>`, `djs:memberjoin:<guild>:<user>:<ts>` …) so duplicate gateway deliveries and bot restarts cannot double-count. Ingestion failures never crash the gateway — they are logged and ledgered.
 
+### Testing on Discord
+
+There are **two ways** to get to a participating server so data actually lands:
+
+**Path A — env default (no admin action needed):**
+1. Set `AZRA_DEFAULT_SHARING_LEVEL=FULL` in `.env` **before** the bot first sees the guild.
+2. The bot auto-registers it as participating.
+
+**Path B — privacy-first, opt in via command (recommended default):**
+1. Leave `AZRA_DEFAULT_SHARING_LEVEL=NONE`; invite the bot.
+2. A **guild admin** runs `/profile-settings sharing:FULL` *(also `MINIMAL`/`STANDARD` if you prefer)* — this flips the guild to participating immediately and seeds the category permissions.
+3. **Verify it took**: `/profile-settings` replies *"Sharing level set to FULL"* — and the `GUILD_UPDATE` event derives `is_participating = true`. *(This was a real bug: before the fix, updating only the level left `is_participating` false and the gate silently skipped everything.)*
+
+**Then, in any channel:**
+1. `/register` — creates the member's identity + server profile in `data/`.
+2. `/generate-data user:@you days:14 intensity:normal` — injects ~250 activity/badge/verification events through the pipeline (Manage Server only).
+3. `/profile` — shows the profile embed. [Optionally `/serverprofile`, `/data-optout`, `/verify`]
+
+**Inspect the JSON store** (written ~250 ms after each command): `data/global_users.json`, `data/global_activity.json`, `data/guild_user_activity.json`, `data/global_badges.json`, `data/global_verification.json`, `data/global_timeline.json`, `data/global_reputation.json`, and `data/profile_data_sources.json` (provenance of every event). If a command reports *"blocked by this server's data-sharing settings"* → run `/profile-settings`.
+
+Without a live Discord, `npm run seed` does the same end-to-end (registers participating guilds + users + activity and prints sample profiles).
+
 ## Event types & gating
 
 `GUILD_REGISTER/UPDATE`, `USER_UPSERT`, `MEMBER_JOINED/LEFT`, `ACTIVITY_MESSAGE/VOICE/REACTION/COMMAND`, `ROLE_ADDED/REMOVED`, `VERIFICATION_COMPLETED/FAILED`, `MODERATION_ACTION`, `BADGE_AWARDED/REVOKED`, `ACHIEVEMENT_UNLOCKED`, `REPUTATION_SIGNAL`, `RESTRICTION_APPLIED/LIFTED`.

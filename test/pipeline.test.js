@@ -41,6 +41,41 @@ test('guild registration seeds default permissions for its sharing level', async
   assert.equal(await dataPermissions.isCategoryAllowed(G2, 'MODERATION'), false);
 });
 
+test('changing the sharing level via profile-settings flips participation', async () => {
+  // Start privacy-first at NONE — gate denies everything.
+  await registerGuild(G, { level: 'NONE', name: 'Silent' });
+  await joinGuild(G, U1);
+  const before = await messageActivity(G, U1, 3);
+  assert.equal(before.status, 'skipped');
+
+  // Guild admin runs /profile-settings sharing:FULL → GUILD_UPDATE.
+  const updated = await ingestEvent(event(EVENT_TYPES.GUILD_UPDATE, {
+    dataSharingLevel: 'FULL',
+    updatedByUserId: ADMIN,
+  }, { guildId: G }));
+  assert.equal(updated.status, 'processed');
+  assert.equal(getStore().table(TABLE_NAMES.GUILDS).get(G).is_participating, true, 'participation derived from FULL');
+
+  // Now the same event must land in the global store.
+  const after = await messageActivity(G, U1, 3);
+  assert.equal(after.status, 'processed');
+  const totals = await globalActivity.getTotals(U1);
+  assert.equal(totals.messages_seen, 3);
+});
+
+test('downgrading to NONE revokes participation immediately', async () => {
+  await registerGuild(G, { level: 'FULL' });
+  await joinGuild(G, U1);
+  await messageActivity(G, U1, 2);
+
+  await ingestEvent(event(EVENT_TYPES.GUILD_UPDATE, { dataSharingLevel: 'NONE' }, { guildId: G }));
+  assert.equal(getStore().table(TABLE_NAMES.GUILDS).get(G).is_participating, false, 'NONE = not participating');
+
+  const result = await messageActivity(G, U1, 1);
+  assert.equal(result.status, 'skipped');
+  assert.match(result.reason, /not participating/);
+});
+
 test('member join writes global user, guild profile and timeline', async () => {
   await registerGuild(G);
   await joinGuild(G, U1);

@@ -26,12 +26,18 @@ export async function guildRegister(event) {
 
 export async function guildUpdate(event) {
   const payload = event.payload;
+  // A change to the sharing level also changes participation: NONE = not
+  // participating; MINIMAL/STANDARD/FULL = participating. Mirrors the
+  // create path's default derivation when isParticipating is not explicit.
+  const isParticipating = payload.isParticipating ?? (payload.dataSharingLevel != null
+    ? payload.dataSharingLevel !== 'NONE'
+    : null);
   const guild = await guilds.updateGuild(event.guildId, {
     name: payload.name ?? null,
     iconHash: payload.iconHash ?? null,
     memberCount: payload.memberCount ?? null,
     dataSharingLevel: payload.dataSharingLevel ?? null,
-    isParticipating: payload.isParticipating ?? null,
+    isParticipating,
     status: payload.status ?? null,
   });
   if (payload.dataSharingLevel != null) {
