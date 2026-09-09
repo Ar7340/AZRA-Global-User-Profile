@@ -102,51 +102,6 @@ export function buildProfileEmbed(summary, { scope = 'PUBLIC', avatarUrl = null 
   return embed;
 }
 
-/** Guild-scoped profile summary → embed. */
-export function buildGuildProfileEmbed(gs, { username = null } = {}) {
-  const embed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle(`${username ?? gs.profile?.nickname ?? 'Member'} — Server Profile`)
-    .setDescription(`Server: **${gs.guild.name}**${gs.guild.isParticipating ? '' : ' *(not participating in global sharing)*'}`)
-    .setTimestamp(new Date(gs.generatedAt));
-
-  embed.addFields({
-    name: 'Membership',
-    value: `Status: ${gs.profile.membershipStatus}\nJoined: ${gs.profile.joinedAt ? gs.profile.joinedAt.slice(0, 10) : 'unknown'}\nLast seen: ${gs.profile.lastSeenAt.slice(0, 10)}`,
-  });
-
-  if (gs.activity) {
-    embed.addFields({
-      name: 'Server activity',
-      value: `Messages: ${gs.activity.messagesSeen} · Reactions: ${gs.activity.reactionsAdded}\nVoice minutes: ${gs.activity.voiceMinutes} · Commands: ${gs.activity.commandsUsed}`,
-    });
-  } else {
-    embed.addFields({ name: 'Server activity', value: 'No recorded activity in available AZRA data.' });
-  }
-
-  if (gs.roles.length) {
-    embed.addFields({
-      name: `Roles (${gs.roles.length})`,
-      value: truncate(gs.roles.slice(0, 15).map((r) => `\`${r.roleName ?? r.roleId}\``).join(' ')),
-    });
-  }
-
-  if (gs.verification) {
-    embed.addFields({ name: 'Verification', value: `${gs.verification.status} (${gs.verification.method})` });
-  }
-
-  if (gs.moderation) {
-    embed.addFields({
-      name: 'Moderation history (moderator view)',
-      value: truncate(gs.moderation.length
-        ? gs.moderation.map((m) => `• ${m.issuedAt.slice(0, 10)} — ${m.actionType}`).join('\n')
-        : 'None recorded'),
-    });
-  }
-
-  return embed;
-}
-
 export function buildNoticeEmbed(title, description, { color = 0x57f287 } = {}) {
   return new EmbedBuilder().setColor(color).setTitle(title).setDescription(truncate(description));
 }

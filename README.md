@@ -82,13 +82,8 @@ npm run bot               # connects to the gateway
 
 | Command | Who | What |
 |---|---|---|
-| `/profile [user]` | everyone | Global profile embed — coverage note, activity (never-fake-zero lines), verification, badges, reputation level, recent history. Moderators additionally see reputation score, scoped moderation lines, and active global restrictions. |
-| `/serverprofile [user]` | everyone | Guild-scoped profile — membership, server activity, roles, verification, moderation history (moderators). |
-| `/profile-settings sharing:<level>` | Manage Server | Sets `NONE / MINIMAL / STANDARD / FULL` → `GUILD_UPDATE` event; permissions take effect immediately and aggregates recalculate in the background. |
-| `/data-optout <mode>` | everyone | Per-user opt-out of *this server's* data feeding global profiles. |
-| `/verify` | everyone | Self-reported verification (once/day, `USER_SELF_REPORT` provenance). |
-| `/register [user]` | everyone (target = moderators) | Registers a member into AZRA: identity upsert + server membership through the pipeline. Idempotent — re-running reports "already registered". Blocked with an explanation in `NONE`-sharing guilds. |
-| `/generate-data [user] [days] [intensity]` | Manage Server | Generates random demo data (activity over the past N days, verification, badge, warning) through the pipeline and recalculates aggregates immediately — `/profile` reflects it instantly. Dev/demo tool. |
+| `/generate-data [user] [days] [intensity]` | Manage Server | The **single data-entry command**. Auto-registers this server with AZRA (sharing `FULL`) if needed, then generates random demo data — activity over the past N days (default 14), verification, a badge, and (normal/heavy) a warning — through the real pipeline. Recalculates aggregates immediately. |
+| `/profile [user]` | everyone | Global profile embed from the stored data — coverage note, activity (never-fake-zero lines), verification, badges, reputation level, recent history. Moderators additionally see reputation score, scoped moderation lines, and active global restrictions. |
 
 ### Gateway → pipeline event mapping
 
@@ -107,23 +102,14 @@ All event ids are **deterministic** (`djs:msg:<id>`, `djs:memberjoin:<guild>:<us
 
 ### Testing on Discord
 
-There are **two ways** to get to a participating server so data actually lands:
+The bot exposes exactly **two** commands: `/generate-data` and `/profile`.
 
-**Path A — env default (no admin action needed):**
-1. Set `AZRA_DEFAULT_SHARING_LEVEL=FULL` in `.env` **before** the bot first sees the guild.
-2. The bot auto-registers it as participating.
+1. Invite the bot, then run `/generate-data user:@you days:14 intensity:normal`.
+   - If this server isn't registered with AZRA or isn't sharing yet, **`/generate-data` auto-registers/switches the server to `FULL` sharing** as part of the run, so data is guaranteed to flow.
+2. Data lands in `data/*.json` (~250 ms flush): `global_activity.json`, `guild_user_activity.json`, `global_activity_daily.json`, `global_badges.json`, `global_verification.json`, `global_timeline.json`, `global_reputation.json`, plus `profile_data_sources.json` (provenance of every event).
+3. Run `/profile` to see the profile embed rendered from that data.
 
-**Path B — privacy-first, opt in via command (recommended default):**
-1. Leave `AZRA_DEFAULT_SHARING_LEVEL=NONE`; invite the bot.
-2. A **guild admin** runs `/profile-settings sharing:FULL` *(also `MINIMAL`/`STANDARD` if you prefer)* — this flips the guild to participating immediately and seeds the category permissions.
-3. **Verify it took**: `/profile-settings` replies *"Sharing level set to FULL"* — and the `GUILD_UPDATE` event derives `is_participating = true`. *(This was a real bug: before the fix, updating only the level left `is_participating` false and the gate silently skipped everything.)*
-
-**Then, in any channel:**
-1. `/register` — creates the member's identity + server profile in `data/`.
-2. `/generate-data user:@you days:14 intensity:normal` — injects ~250 activity/badge/verification events through the pipeline (Manage Server only).
-3. `/profile` — shows the profile embed. [Optionally `/serverprofile`, `/data-optout`, `/verify`]
-
-**Inspect the JSON store** (written ~250 ms after each command): `data/global_users.json`, `data/global_activity.json`, `data/guild_user_activity.json`, `data/global_badges.json`, `data/global_verification.json`, `data/global_timeline.json`, `data/global_reputation.json`, and `data/profile_data_sources.json` (provenance of every event). If a command reports *"blocked by this server's data-sharing settings"* → run `/profile-settings`.
+*(Optional env control: set `AZRA_DEFAULT_SHARING_LEVEL=FULL` in `.env` before the first bot invite so new servers start participating and `/generate-data` skips its auto-opt-in step.)*
 
 Without a live Discord, `npm run seed` does the same end-to-end (registers participating guilds + users + activity and prints sample profiles).
 

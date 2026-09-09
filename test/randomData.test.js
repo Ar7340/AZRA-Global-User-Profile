@@ -1,6 +1,7 @@
 import { test, describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildGenerationPlan, INTENSITY_PRESETS, BADGE_POOL, WARN_REASONS } from '../bot/randomData.js';
+import { buildGenerationPlan, INTENSITY_PRESETS } from '../bot/randomData.js';
+import { planSetup } from '../bot/commands/generateData.js';
 import { validateEvent } from '../src/events/validators.js';
 import { createTestStore, destroyTestStore, registerGuild, G, G2, U1, U2 } from './helpers.js';
 import { ingestEvent } from '../src/events/processor.js';
@@ -89,8 +90,14 @@ describe('buildGenerationPlan', () => {
         }
       }
     }
-    for (const badge of seenBadges) assert.ok(BADGE_POOL.includes(badge));
-    for (const reason of seenWarns) assert.ok(WARN_REASONS.includes(reason));
+    for (const badge of seenBadges) assert.ok(['BUG_HUNTER', 'EARLY_SUPPORTER', 'COMMUNITY_PILLAR', 'EVENT_ORGANIZER', 'PEACEKEEPER'].includes(badge));
+    for (const reason of seenWarns) assert.ok(['Spamming channels', 'Inappropriate content', 'Excessive pinging', 'Raid participation', 'Harassment report'].includes(reason));
+  });
+
+  test('planSetup decides auto-opt-in correctly', () => {
+    assert.equal(planSetup(null), 'register');
+    assert.equal(planSetup({ is_participating: false }), 'update');
+    assert.equal(planSetup({ is_participating: true }), 'none');
   });
 });
 
