@@ -12,6 +12,10 @@ data/
 *.log
 npm-debug.log*
 
+# Local render previews (not part of the repo)
+preview-*.png
+azra-profile.png
+
 # OS noise
 .DS_Store
 Thumbs.db

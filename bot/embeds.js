@@ -1,4 +1,14 @@
 import { EmbedBuilder } from 'discord.js';
+import {
+  LEVEL_EMOJI,
+  COVERAGE_EMOJI,
+  badgeEmoji,
+  achievementEmoji,
+  eventEmoji,
+  moderationEmoji,
+  verificationEmoji,
+  miniBar,
+} from './emojiRegistry.js';
 
 const LEVEL_COLORS = {
   NEW: 0x5865f2,
@@ -8,94 +18,147 @@ const LEVEL_COLORS = {
   FLAGGED: 0xed4245,
 };
 
-const COVERAGE_EMOJI = {
-  FULL: '✅',
-  PARTIAL: '⚠️',
-  NONE: '🚫',
-  NO_COMMUNITIES: '🌐',
-};
-
 function truncate(value, max = 1024) {
   const text = String(value ?? '');
   return text.length <= max ? text : `${text.slice(0, max - 1)}…`;
 }
 
-/** Global profile summary → Discord embed. Shows only what the service
- *  already filtered for the caller's viewer scope. */
-export function buildProfileEmbed(summary, { scope = 'PUBLIC', avatarUrl = null } = {}) {
+const fmtDate = (iso) => (iso ?? '—').slice(0, 10);
+
+/** Global profile summary → full-data Discord embed.
+ *  `imageUrl` (attachment://...) is shown when the card is attached. */
+export function buildProfileEmbed(summary, { scope = 'PUBLIC', avatarUrl = null, imageUrl = null } = {}) {
+  const rep = summary.reputation ?? {};
   const embed = new EmbedBuilder()
-    .setColor(LEVEL_COLORS[summary.reputation?.level] ?? LEVEL_COLORS.NEW)
-    .setTitle(`${summary.user.username ?? summary.user.userId} — Global Profile`)
+    .setColor(LEVEL_COLORS[rep.level] ?? LEVEL_COLORS.NEW)
+    .setTitle(`${summary.user.globalName ?? summary.user.username ?? summary.user.userId} — Global Profile`)
     .setFooter({ text: `AZRA Global Profile · viewer scope: ${scope}` })
     .setTimestamp(new Date(summary.generatedAt));
 
+  if (imageUrl) embed.setImage(imageUrl);
   if (avatarUrl) embed.setThumbnail(avatarUrl);
-  if (summary.user.globalName) embed.setAuthor({ name: summary.user.globalName });
 
+  // ── 🛰️ Identity ────────────────────────────────────────────────────────
+  const identityLines = [
+    `👤 Username: \`${summary.user.username ?? '—'}\``,
+    `🆔 User ID: \`${summary.user.userId}\``,
+    `🤖 Bot: ${summary.user.isBot ? 'yes' : 'no'}`,
+    `📅 Account created: ${fmtDate(summary.user.accountCreatedAt)}`,
+    `🕒 First seen: ${fmtDate(summary.user.firstSeenAt)} · Last seen: ${fmtDate(summary.user.lastSeenAt)}`,
+    `🗂️ Profile created: ${fmtDate(summary.user.profileCreatedAt)} · Updated: ${fmtDate(summary.user.profileUpdatedAt)}`,
+  ];
+  embed.addFields({ name: '🛰️ Identity', value: truncate(identityLines.join('\n')) });
+
+  // ── 🌐 Data coverage ────────────────────────────────────────────────────
+  const cov = summary.coverage ?? {};
   embed.addFields({
-    name: `${COVERAGE_EMOJI[summary.coverage.completeness] ?? 'ℹ️'} Data coverage`,
-    value: truncate(summary.coverage.note),
+    name: `${COVERAGE_EMOJI[cov.completeness] ?? '🌐'} Data coverage`,
+    value: truncate(`${cov.note ?? ''}\n▸ ${cov.serversContributing} of ${cov.participatingCommunities} contributing communities`),
   });
 
+  // ── 📊 Activity ────────────────────────────────────────────────────────
   if (summary.activity?.hasData) {
-    embed.addFields({
-      name: 'Activity',
-      value: truncate([
-        `• ${summary.activity.lines.messages}`,
-        `• ${summary.activity.lines.reactions}`,
-        `• ${summary.activity.lines.voiceMinutes}`,
-        `• Contributing communities: ${summary.activity.contributingGuilds}`,
-        `• Active days: ${summary.activity.totals.activeDays}`,
-      ].join('\n')),
-    });
+    const a = summary.activity;
+    const totals = a.totals;
+    const bar = a.recentDays?.length
+      ? miniBar(a.recentDays.map((d) => d.messagesSeen + d.reactionsAdded + d.voiceMinutes + d.commandsUsed))
+      : '';
+    const activityLines = [
+      `💬 ${a.lines.messages}`,
+      `👍 ${a.lines.reactions}`,
+      `🎙️ ${a.lines.voiceMinutes}`,
+      `⌨️ ${a.lines.commands}`,
+      `🗓️ Active days: **${totals.activeDays}** · 🌐 Communities: **${a.contributingGuilds}**`,
+      `🕒 First active: ${fmtDate(a.firstActiveAt)} · Last active: ${fmtDate(a.lastActiveAt)}`,
+      bar ? `▸ Last ${a.recentDays.length} days:\n\`${bar}\`` : '',
+    ].filter(Boolean);
+    embed.addFields({ name: '📊 Activity', value: truncate(activityLines.join('\n')) });
   } else if (summary.activity) {
-    embed.addFields({ name: 'Activity', value: truncate(summary.activity.note) });
+    embed.addFields({ name: '📊 Activity', value: truncate(summary.activity.note) });
   }
 
   if (summary.verification) {
+    const v = summary.verification;
     embed.addFields({
-      name: 'Verification',
-      value: `${summary.verification.status} · ${summary.verification.highestLevel} · ${summary.verification.confirmingGuilds} communities`,
-    });
-  }
-
-  embed.addFields({
-    name: 'Reputation',
-    value: scope === 'PUBLIC'
-      ? summary.reputation.level
-      : `${summary.reputation.level} (score ${summary.reputation.score ?? '—'})`,
-  });
-
-  embed.addFields({
-    name: `Badges (${summary.badges.count})`,
-    value: truncate(summary.badges.items.length
-      ? summary.badges.items.map((b) => `\`${b.key}\``).join(' ')
-      : 'None recorded'),
-  });
-
-  if (summary.moderation) {
-    embed.addFields({
-      name: 'Moderation (moderator view)',
+      name: `${verificationEmoji(v.status)} Verification`,
       value: truncate([
-        `• ${summary.moderation.lines.bans}`,
-        `• ${summary.moderation.lines.kicks}`,
-        `• ${summary.moderation.lines.timeouts}`,
-        `• ${summary.moderation.lines.warns}`,
+        `Status: **${v.status}**`,
+        `Level: ${v.highestLevel ?? '—'}`,
+        `Guilds: ${v.confirmingGuilds}`,
+        `Last verified: ${fmtDate(v.lastVerifiedAt)}`,
       ].join('\n')),
     });
   }
 
-  if (summary.restrictions?.length) {
+  // ── 🏅 Badges ──────────────────────────────────────────────────────────
+  const badges = summary.badges ?? { count: 0, items: [] };
+  embed.addFields({
+    name: `🏅 Badges (${badges.count})`,
+    value: truncate(badges.items.length
+      ? badges.items.map((b) => `${badgeEmoji(b.key)} \`${b.key}\` — ${fmtDate(b.awardedAt)}`).join('\n')
+      : 'None recorded yet.'),
+  });
+
+  // ── 🏆 Achievements ────────────────────────────────────────────────────
+  const achievements = summary.achievements ?? { count: 0, items: [] };
+  embed.addFields({
+    name: `🏆 Achievements (${achievements.count})`,
+    value: truncate(achievements.items.length
+      ? achievements.items.map((a) => `${achievementEmoji(a.key)} \`${a.key}\` · tier ${a.tier} — ${fmtDate(a.achievedAt)}`).join('\n')
+      : 'None unlocked yet.'),
+  });
+
+  // ── ⭐ Reputation ──────────────────────────────────────────────────────
+  const repLine = scope === 'PUBLIC'
+    ? `${LEVEL_EMOJI[rep.level] ?? ''} ${rep.level ?? 'NEW'}`
+    : `${LEVEL_EMOJI[rep.level] ?? ''} ${rep.level ?? 'NEW'} (score ${rep.score ?? '—'})`;
+  embed.addFields({
+    name: '⭐ Reputation',
+    value: truncate([
+      repLine,
+      rep.positiveSignals != null ? `👍 Positive signals: ${rep.positiveSignals} · 👎 Negative: ${rep.negativeSignals}` : '',
+    ].filter(Boolean).join('\n')),
+  });
+
+  // ── 🚨 Moderation (moderator view) ─────────────────────────────────────
+  if (scope !== 'PUBLIC' && summary.moderation) {
+    const m = summary.moderation;
+    const recent = (m.recent ?? []).slice(0, 5)
+      .map((r) => `${moderationEmoji(r.actionType)} ${r.actionType} — ${r.guildId} — ${fmtDate(r.issuedAt)}`)
+      .join('\n');
     embed.addFields({
-      name: 'Active global restrictions',
-      value: truncate(summary.restrictions.map((r) => `• ${r.type}${r.expiresAt ? ` (until ${r.expiresAt.slice(0, 10)})` : ''}`).join('\n')),
+      name: '🚨 Moderation (moderator view)',
+      value: truncate([
+        `⚠️ ${m.lines.warns}`,
+        `⏳ ${m.lines.timeouts}`,
+        `👢 ${m.lines.kicks}`,
+        `🔨 ${m.lines.bans}`,
+        recent ? `\n_Recent:_\n${recent}` : '',
+      ].filter(Boolean).join('\n')),
     });
   }
 
+  // ── ⛔ Restrictions (moderator view) ───────────────────────────────────
+  if (scope !== 'PUBLIC' && summary.restrictions?.length) {
+    embed.addFields({
+      name: `⛔ Active global restrictions (${summary.restrictions.length})`,
+      value: truncate(summary.restrictions.map((r) => [
+        `${moderationEmoji(r.type)} \`${r.type}\``,
+        r.reason ? `ₒ ${r.reason}` : '',
+        `ₒ ${r.startsAt ? `Starts ${fmtDate(r.startsAt)}` : ''}${r.expiresAt ? ` · Expires ${fmtDate(r.expiresAt)}` : ''}`,
+      ].filter(Boolean).join('\n')).join('\n\n')),
+    });
+  }
+
+  // ── 📜 Timeline ────────────────────────────────────────────────────────
   if (summary.timeline.length) {
     embed.addFields({
-      name: 'Recent history',
-      value: truncate(summary.timeline.slice(0, 5).map((t) => `• ${t.occurredAt.slice(0, 10)} — ${t.summary}`).join('\n')),
+      name: '📜 Recent history',
+      value: truncate(summary.timeline.slice(0, 8).map((t) => {
+        const emoji = t.eventType ? eventEmoji(t.eventType) : '📌';
+        const guild = t.guildId ? ` (${t.guildId})` : '';
+        return `${emoji} ${t.occurredAt.slice(0, 10)}${guild} — ${t.summary}`;
+      }).join('\n')),
     });
   }
 

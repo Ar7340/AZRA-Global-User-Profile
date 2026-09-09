@@ -2,7 +2,7 @@
 
 A production-ready **global identity and community-history platform** for Discord users. AZRA builds one centralized profile per user it encounters, aggregating **authorized** information from participating servers while keeping global, server-specific, and moderator-only information strictly separated.
 
-> **Status:** backend foundation **+ Discord bot integration**. Profile image rendering may be added on top later; every profile feature builds on this layer.
+> **Status:** backend foundation **+ Discord bot integration + visual profile card**. Every profile feature builds on this layer.
 
 ---
 
@@ -83,7 +83,7 @@ npm run bot               # connects to the gateway
 | Command | Who | What |
 |---|---|---|
 | `/generate-data [user] [days] [intensity]` | Manage Server | The **single data-entry command**. Auto-registers this server with AZRA (sharing `FULL`) if needed, then generates random demo data — activity over the past N days (default 14), verification, a badge, and (normal/heavy) a warning — through the real pipeline. Recalculates aggregates immediately. |
-| `/profile [user]` | everyone | Global profile embed from the stored data — coverage note, activity (never-fake-zero lines), verification, badges, reputation level, recent history. Moderators additionally see reputation score, scoped moderation lines, and active global restrictions. |
+| `/profile [user]` | everyone | **Image + embed combo**: a rendered `azra-profile.png` profile card (avatar, emoji badge shelf, 2×4 stat grid, coverage strip, reputation-colored background) **plus** a full-data embed — 🛰️ Identity, 🌐 Data coverage, 📊 Activity (incl. last-7-days mini bar-chart), ✅ Verification, 🏅 Badges, 🏆 Achievements, ⭐ Reputation, and (for moderators) 🚨 Moderation, ⛔ Restrictions, 📜 Recent history — all with emoji icons. |
 
 ### Gateway → pipeline event mapping
 
