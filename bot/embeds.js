@@ -26,7 +26,7 @@ function truncate(value, max = 1024) {
 const fmtDate = (iso) => (iso ?? '—').slice(0, 10);
 
 /** Global profile summary → full-data Discord embed.
- *  `imageUrl` (attachment://...) is shown when the card is attached. */
+ *  `imageUrl` inlines the card INSIDE the embed (below the title). Omit it and attach the PNG via the response `files` array to place the card at the TOP (Discord renders standalone attachments above the embed). */
 export function buildProfileEmbed(summary, { scope = 'PUBLIC', avatarUrl = null, imageUrl = null } = {}) {
   const rep = summary.reputation ?? {};
   const embed = new EmbedBuilder()

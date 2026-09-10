@@ -100,7 +100,7 @@ describe('buildProfileEmbed', () => {
     const names = embed.toJSON().fields.map((f) => f.name);
     assert.ok(!names.some((n) => n.includes('Moderation')), `moderation hidden from PUBLIC (got ${names.filter((n) => n.includes('Moderation'))})`);
     assert.ok(!names.some((n) => n.includes('restrictions')), `restrictions hidden from PUBLIC (got ${names.filter((n) => n.includes('restriction'))})`);
-    assert.ok(names.includes('⭐ Reputation'));
+    assert.equal(embed.toJSON().image, undefined, 'card is NOT inlined - it rides as a top attachment');assert.ok(names.includes('⭐ Reputation'));
   });
 
   test('never-fake-zero language appears in the embed', () => {
