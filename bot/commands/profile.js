@@ -66,7 +66,7 @@ export async function execute(interaction) {
       embeds: [buildProfileEmbed(summary, {
         scope: viewerScope,
         avatarUrl: target.displayAvatarURL?.({ size: 128 }) ?? null,
-        imageUrl: null, // card rides ON TOP: attached via files, rendered above the embed
+        imageUrl: cardBuffer ? 'attachment://azra-profile.png' : null, // banner INSIDE the embed
       })],
     };
     if (cardBuffer) {

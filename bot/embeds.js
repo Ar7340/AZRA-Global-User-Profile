@@ -165,6 +165,64 @@ export function buildProfileEmbed(summary, { scope = 'PUBLIC', avatarUrl = null,
   return embed;
 }
 
+/** Parsed forward → breakdown embeds (header + one per embedded embed). */
+export function buildForwardReportEmbeds(parsed, { channelNote = null } = {}) {
+  const embeds = [];
+  const source = parsed?.source ?? { content: '', embeds: [], attachments: [] };
+
+  // Header overview.
+  const header = new EmbedBuilder()
+    .setColor(0x5865f2)
+    .setTitle(parsed?.isForward ? `↪ Forwarded message — ${parsed.embedCount} embed(s) read` : '📄 Message contents')
+    .setFooter({ text: `AZRA Forward Reader${channelNote ? ` · channel ${channelNote}` : ''}` })
+    .setTimestamp(new Date());
+  const overview = [
+    `▸ Type: **${parsed?.isForward ? 'FORWARD' : 'MESSAGE'}**`,
+    `▸ Embeds read: **${parsed?.embedCount ?? 0}** · Attachments: **${parsed?.attachmentCount ?? 0}**`,
+    parsed?.forwardAuthor ? `▸ Forwarded by: **@${parsed.forwardAuthor.username ?? parsed.forwardAuthor.id}**` : '',
+    source.content ? `▸ Text: ${source.content.slice(0, 300)}` : '',
+    source.componentsCount ? `▸ Components on original: ${source.componentsCount}` : '',
+  ].filter(Boolean);
+  header.setDescription(overview.join('\n') || 'Empty message.');
+  embeds.push(header);
+
+  // One embed per embedded embed in the forward.
+  for (const [index, emb] of source.embeds.entries()) {
+    const breakdown = new EmbedBuilder()
+      .setColor(emb.color ?? 0x2b2d31)
+      .setTitle(`Embedded embed #${index + 1}${emb.title ? ` — ${emb.title.slice(0, 200)}` : ''}`)
+      .setTimestamp(emb.timestamp ? new Date(emb.timestamp) : undefined);
+    if (emb.author) breakdown.setAuthor({ name: emb.author.slice(0, 250) });
+    if (emb.description) breakdown.setDescription(emb.description.slice(0, 4000));
+    const parts = [
+      emb.footer ? `Footer: ${emb.footer}` : '',
+      emb.imageUrl ? `Image: ${emb.imageUrl}` : '',
+      emb.thumbnailUrl ? `Thumbnail: ${emb.thumbnailUrl}` : '',
+    ].filter(Boolean);
+    if (parts.length) breakdown.addFields({ name: 'Extras', value: parts.join('\n').slice(0, 1024) });
+    for (const field of emb.fields.slice(0, 20)) {
+      breakdown.addFields({ name: field.name?.slice(0, 250) || '(field)', value: field.value?.slice(0, 1000) || '(empty)', inline: false });
+    }
+    embeds.push(breakdown);
+  }
+
+  // Raw JSON + image-post limitation note.
+  const raw = JSON.stringify(parsed, null, 2);
+  const rawEmbed = new EmbedBuilder()
+    .setColor(0x2b2d31)
+    .setTitle('🔎 Raw parsed data')
+    .setDescription(`'''json\n${raw.length > 3900 ? `${raw.slice(0, 3900)}…` : raw}\n'''`);
+  const imageOnly = parsed?.embedCount === 0 && parsed?.attachmentCount > 0;
+  if (imageOnly) {
+    rawEmbed.addFields({
+      name: '🖼️ Image-only forward',
+      value: `This message is a rendered IMAGE (a canvas/dashboard), not a real embed — bots can read embeds, not pixels.`,
+    });
+  }
+  embeds.push(rawEmbed);
+  return embeds;
+}
+
 export function buildNoticeEmbed(title, description, { color = 0x57f287 } = {}) {
   return new EmbedBuilder().setColor(color).setTitle(title).setDescription(truncate(description));
 }

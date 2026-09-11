@@ -156,7 +156,7 @@ describe('slash command registry', () => {
     }
     assert.deepEqual(
       [...new Set(names)].sort(),
-      ['generate-data', 'profile'],
+      ['generate-data', 'profile', 'read-forward'],
     );
   });
 });

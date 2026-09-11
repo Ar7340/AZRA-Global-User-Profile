@@ -1,7 +1,7 @@
 import { GlobalFonts, Image, loadImage, createCanvas } from '@napi-rs/canvas';
 import { env } from '../src/config/env.js';
 import { logger } from '../src/utils/logger.js';
-import { badgeEmoji, COVERAGE_EMOJI } from './emojiRegistry.js';
+import { badgeEmoji, achievementEmoji, COVERAGE_EMOJI } from './emojiRegistry.js';
 
 const log = logger.child('profile-card');
 
@@ -13,7 +13,7 @@ const log = logger.child('profile-card');
  */
 
 export const CARD_WIDTH = 800;
-export const CARD_HEIGHT = 400;
+export const CARD_HEIGHT = 520;
 
 const LEVEL_COLORS = {
   NEW: [88, 101, 242],
@@ -179,12 +179,22 @@ export async function renderProfileCard({ summary, avatarBuffer = null } = {}) {
       ctx.fillText('🤖', 170, 115);
     }
 
-    // Badge shelf.
+    // Badge + achievement shelf.
     const badges = summary.badges?.items ?? [];
+    const achievements = summary.achievements?.items ?? [];
     let bx = 170;
     ctx.font = '26px Segoe UI Emoji';
-    for (const badge of badges.slice(0, 8)) {
+    for (const badge of badges.slice(0, 6)) {
       ctx.fillText(badgeEmoji(badge.key), bx, 112);
+      bx += 44;
+    }
+    if (badges.length && achievements.length) {
+      ctx.fillText('·', bx, 112);
+      bx += 32;
+    }
+    for (const ach of achievements.slice(0, 6)) {
+      if (bx > CARD_WIDTH - 80) break;
+      ctx.fillText(achievementEmoji(ach.key), bx, 112);
       bx += 44;
     }
 
